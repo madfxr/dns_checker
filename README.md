@@ -7,5 +7,5 @@
 
 ## Installation
 - Make sure to download and place the tool in the ``/usr/bin`` directory.
-- Download the tool source code by running the command: ``sudo wget https://raw.githubusercontent.com/madfxr/neo-network-management-tools/refs/heads/main/neo-network-management-tools``.
+- Download the tool source code by running the command: ``sudo wget https://raw.githubusercontent.com/madfxr/dns_checker/refs/heads/main/dns_checker``.
 - Grant access rights to the ``/usr/bin/dns_checker`` file by running the command: ``sudo chmod +x /usr/bin/dns_checker``.
