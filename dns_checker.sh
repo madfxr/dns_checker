@@ -1,0 +1,79 @@
+#!/bin/bash
+echo "                                                                                      "
+echo "██████╗ ███╗   ██╗███████╗     ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗███████╗██████╗ "
+echo "██╔══██╗████╗  ██║██╔════╝    ██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝██╔════╝██╔══██╗"
+echo "██║  ██║██╔██╗ ██║███████╗    ██║     ███████║█████╗  ██║     █████╔╝ █████╗  ██████╔╝"
+echo "██║  ██║██║╚██╗██║╚════██║    ██║     ██╔══██║██╔══╝  ██║     ██╔═██╗ ██╔══╝  ██╔══██╗"
+echo "██████╔╝██║ ╚████║███████║    ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗███████╗██║  ██║"
+echo "╚═════╝ ╚═╝  ╚═══╝╚══════╝     ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝"
+echo ""
+
+echo "[Checking Name Server for Each Domain]"
+
+if [[ "$1" != "-d" || -z "$2" ]]; then
+    echo "Usage: $0 -d domain.txt"
+    exit 1
+fi
+
+DOMAIN_FILE="$2"
+NS_OUTPUT="name_server.txt"
+TMP_NS="tmp_ns.txt"
+
+if [[ ! -f "$DOMAIN_FILE" ]]; then
+    echo "Domain File Not Found: $DOMAIN_FILE"
+    exit 1
+fi
+
+mkdir -p output
+> "$TMP_NS"
+
+total_domains=0
+
+while read -r domain; do
+    [[ -z "$domain" ]] && continue
+    total_domains=$((total_domains+1))
+
+    echo "Query Name Server for Domain: $domain"
+
+    whois "$domain" > "output/${domain}_whois.txt"
+
+    grep -E "^Name Server:" "output/${domain}_whois.txt" | awk '{print $NF}' >> "$TMP_NS"
+done < "$DOMAIN_FILE"
+
+sort -u "$TMP_NS" > "$NS_OUTPUT"
+rm "$TMP_NS"
+
+echo "List of Name Servers Saved in Directory: $NS_OUTPUT"
+echo "Name Servers:"
+while read -r ns; do
+    [[ -z "$ns" ]] && continue
+    echo "Name Server: $ns"
+done < "$NS_OUTPUT"
+echo ""
+echo "[Checking A Record and PTR for Each Domain]"
+
+while read -r domain; do
+    [[ -z "$domain" ]] && continue
+
+    while read -r ns; do
+        [[ -z "$ns" ]] && continue
+
+        ip_results=$(dig @"$ns" "$domain" A +short +timeout=2 +tries=1 | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
+
+        if [[ -n "$ip_results" ]]; then
+            while read -r ip; do
+                ptr=$(dig -x "$ip" +short | sed 's/\.$//')
+
+                [[ -z "$ptr" ]] && ptr="-"
+
+                echo "Query A Record and PTR for Domain: $domain 🡪 $ip ($ptr) ($ns)"
+            done <<< "$ip_results"
+        else
+            echo "Query A Record and PTR for Domain: $domain 🡪 (Propagation in Progress) ($ns)"
+        fi
+
+    done < "$NS_OUTPUT"
+done < "$DOMAIN_FILE"
+
+echo ""
+echo "Total Domain: $total_domains"
